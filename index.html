@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>King James Version (KJV) Bible Reader</title>
+  
+  <!-- Bootstrap 5 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <!-- Google Fonts: Cinzel for headers, Lora for scripture reading -->
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --primary-color: #2c3e50;
+      --accent-color: #8b0000;
+      --bg-light: #f8f9fa;
+    }
+
+    body {
+      font-family: 'Lora', Georgia, serif;
+      background-color: var(--bg-light);
+      color: #2b2b2b;
+    }
+
+    .brand-title {
+      font-family: 'Cinzel', serif;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+
+    .sidebar-nav {
+      max-height: calc(100vh - 120px);
+      overflow-y: auto;
+    }
+
+    .verse-card {
+      background: #ffffff;
+      border: 1px solid #e9ecef;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+      padding: 2.5rem;
+    }
+
+    .verse-num {
+      font-weight: 700;
+      color: var(--accent-color);
+      font-size: 0.85em;
+      vertical-align: super;
+      margin-right: 4px;
+    }
+
+    .nav-pills .nav-link.active {
+      background-color: var(--primary-color);
+    }
+
+    .nav-pills .nav-link {
+      color: var(--primary-color);
+      font-family: 'Cinzel', serif;
+      font-size: 0.85rem;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navigation Header -->
+  <header class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top shadow-sm">
+    <div class="container-fluid px-4">
+      <a class="navbar-brand brand-title d-flex align-items-center" href="#">
+        <i class="bi bi-book-half me-2 text-warning"></i> Holy Bible (KJV)
+      </a>
+      
+      <!-- Quick Search Bar -->
+      <form class="d-flex ms-auto my-2 my-lg-0 col-12 col-lg-4" id="searchForm" onsubmit="event.preventDefault();">
+        <div class="input-group">
+          <input class="form-control" type="search" id="searchInput" placeholder="Search book, chapter, or verse..." aria-label="Search">
+          <button class="btn btn-outline-light" type="submit"><i class="bi bi-search"></i></button>
+        </div>
+      </form>
+    </div>
+  </header>
+
+  <!-- Main Container Layout -->
+  <div class="container-fluid my-4 px-4">
+    <div class="row g-4">
+      
+      <!-- Sidebar Navigation: Section & Book Selector -->
+      <aside class="col-lg-3">
+        <div class="card border-0 shadow-sm p-3 sidebar-nav">
+          <h5 class="brand-title h6 mb-3 text-uppercase text-muted">Complete 80-Book Canon</h5>
+          
+          <!-- Section Selector Tabs -->
+          <ul class="nav nav-pills nav-fill mb-3" id="canon-tab" role="tablist">
+            <li class="nav-item" role="presentation">
+              <button class="nav-link active" id="ot-tab" data-bs-toggle="pill" data-bs-target="#ot-canon" type="button" role="tab">OT (39)</button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="apocrypha-tab" data-bs-toggle="pill" data-bs-target="#apocrypha-canon" type="button" role="tab">Apocrypha (14)</button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="nt-tab" data-bs-toggle="pill" data-bs-target="#nt-canon" type="button" role="tab">NT (27)</button>
+            </li>
+          </ul>
+
+          <!-- Dynamic Tab Lists -->
+          <div class="tab-content" id="canon-tabContent">
+            <div class="tab-pane fade show active" id="ot-canon" role="tabpanel">
+              <div class="list-group list-group-flush small" id="ot-list"></div>
+            </div>
+            <div class="tab-pane fade" id="apocrypha-canon" role="tabpanel">
+              <div class="list-group list-group-flush small" id="apocrypha-list"></div>
+            </div>
+            <div class="tab-pane fade" id="nt-canon" role="tabpanel">
+              <div class="list-group list-group-flush small" id="nt-list"></div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Main Reader View -->
+      <main class="col-lg-9">
+        
+        <!-- Reader Control Bar -->
+        <div class="d-flex justify-content-between align-items-center mb-3 bg-white p-3 rounded shadow-sm">
+          <div>
+            <h1 class="brand-title h3 mb-0" id="currentBookTitle">Genesis</h1>
+            <span class="badge bg-secondary text-uppercase mt-1" id="currentSectionBadge">Old Testament</span>
+          </div>
+
+          <!-- Chapter Dropdown -->
+          <div class="d-flex gap-2 align-items-center">
+            <label for="chapterSelect" class="form-label mb-0 small fw-bold">Chapter:</label>
+            <select class="form-select form-select-sm w-auto" id="chapterSelect"></select>
+          </div>
+        </div>
+
+        <!-- Verse Display Card -->
+        <article class="verse-card">
+          <h2 class="brand-title h4 text-center mb-4" id="chapterHeading">Chapter 1</h2>
+
+          <div id="verseContent">
+            <!-- Dynamic Scripture Text Injected Here -->
+          </div>
+
+          <!-- Chapter Navigation Buttons -->
+          <div class="d-flex justify-content-between border-top pt-4 mt-5">
+            <button class="btn btn-outline-secondary" id="prevChapterBtn"><i class="bi bi-arrow-left"></i> Previous Chapter</button>
+            <button class="btn btn-primary" id="nextChapterBtn">Next Chapter <i class="bi bi-arrow-right"></i></button>
+          </div>
+        </article>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="bg-dark text-light text-center py-4 mt-5 border-top border-secondary">
+    <div class="container">
+      <p class="small mb-1">King James Version (1611) — Public Domain Source hosted on Project Gutenberg.</p>
+      <p class="text-muted small mb-0">Designed with Bootstrap 5 Framework.</p>
+    </div>
+  </footer>
+
+  <!-- Bootstrap 5 JS Bundle -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- Complete Application JavaScript Logic -->
+  <script>
+    // 1. Complete 80-Book KJV Data Model
+    const kjvBooks = [
+      // --- OLD TESTAMENT (39 Books) ---
+      { id: "gen", name: "Genesis", section: "OT", chapters: 50 },
+      { id: "exo", name: "Exodus", section: "OT", chapters: 40 },
+      { id: "lev", name: "Leviticus", section: "OT", chapters: 27 },
+      { id: "num", name: "Numbers", section: "OT", chapters: 36 },
+      { id: "deu", name: "Deuteronomy", section: "OT", chapters: 34 },
+      { id: "jos", name: "Joshua", section: "OT", chapters: 24 },
+      { id: "jdg", name: "Judges", section: "OT", chapters: 21 },
+      { id: "rut", name: "Ruth", section: "OT", chapters: 4 },
+      { id: "1sa", name: "1 Samuel", section: "OT", chapters: 31 },
+      { id: "2sa", name: "2 Samuel", section: "OT", chapters: 24 },
+      { id: "1ki", name: "1 Kings", section: "OT", chapters: 22 },
+      { id: "2ki", name: "2 Kings", section: "OT", chapters: 25 },
+      { id: "1ch", name: "1 Chronicles", section: "OT", chapters: 29 },
+      { id: "2ch", name: "2 Chronicles", section: "OT", chapters: 36 },
+      { id: "ezr", name: "Ezra", section: "OT", chapters: 10 },
+      { id: "neh", name: "Nehemiah", section: "OT", chapters: 13 },
+      { id: "est", name: "Esther", section: "OT", chapters: 10 },
+      { id: "job", name: "Job", section: "OT", chapters: 42 },
+      { id: "psa", name: "Psalms", section: "OT", chapters: 150 },
+      { id: "pro", name: "Proverbs", section: "OT", chapters: 31 },
+      { id: "ecc", name: "Ecclesiastes", section: "OT", chapters: 12 },
+      { id: "sng", name: "Song of Solomon", section: "OT", chapters: 8 },
+      { id: "isa", name: "Isaiah", section: "OT", chapters: 66 },
+      { id: "jer", name: "Jeremiah", section: "OT", chapters: 52 },
+      { id: "lam", name: "Lamentations", section: "OT", chapters: 5 },
+      { id: "ezk", name: "Ezekiel", section: "OT", chapters: 48 },
+      { id: "dan", name: "Daniel", section: "OT", chapters: 12 },
+      { id: "hos", name: "Hosea", section: "OT", chapters: 14 },
+      { id: "jol", name: "Joel", section: "OT", chapters: 3 },
+      { id: "amo", name: "Amos", section: "OT", chapters: 9 },
+      { id: "oba", name: "Obadiah", section: "OT", chapters: 1 },
+      { id: "jon", name: "Jonah", section: "OT", chapters: 4 },
+      { id: "mic", name: "Micah", section: "OT", chapters: 7 },
+      { id: "nam", name: "Nahum", section: "OT", chapters: 3 },
+      { id: "hab", name: "Habakkuk", section: "OT", chapters: 3 },
+      { id: "zep", name: "Zephaniah", section: "OT", chapters: 3 },
+      { id: "hag", name: "Haggai", section: "OT", chapters: 2 },
+      { id: "zec", name: "Zechariah", section: "OT", chapters: 14 },
+      { id: "mal", name: "Malachi", section: "OT", chapters: 4 },
+
+      // --- APOCRYPHA (14 Books) ---
+      { id: "1es", name: "1 Esdras", section: "Apocrypha", chapters: 9 },
+      { id: "2es", name: "2 Esdras", section: "Apocrypha", chapters: 16 },
+      { id: "tob", name: "Tobit", section: "Apocrypha", chapters: 14 },
+      { id: "jdt", name: "Judith", section: "Apocrypha", chapters: 16 },
+      { id: "r_est", name: "Rest of Esther", section: "Apocrypha", chapters: 6 },
+      { id: "wis", name: "Wisdom of Solomon", section: "Apocrypha", chapters: 19 },
+      { id: "sir", name: "Ecclesiasticus (Sirach)", section: "Apocrypha", chapters: 51 },
+      { id: "bar", name: "Baruch", section: "Apocrypha", chapters: 6 },
+      { id: "sth", name: "Song of Three Children", section: "Apocrypha", chapters: 1 },
+      { id: "sus", name: "Susanna", section: "Apocrypha", chapters: 1 },
+      { id: "bel", name: "Bel and the Dragon", section: "Apocrypha", chapters: 1 },
+      { id: "man", name: "Prayer of Manasses", section: "Apocrypha", chapters: 1 },
+      { id: "1ma", name: "1 Maccabees", section: "Apocrypha", chapters: 16 },
+      { id: "2ma", name: "2 Maccabees", section: "Apocrypha", chapters: 15 },
+
+      // --- NEW TESTAMENT (27 Books) ---
+      { id: "mat", name: "Matthew", section: "NT", chapters: 28 },
+      { id: "mar", name: "Mark", section: "NT", chapters: 16 },
+      { id: "luk", name: "Luke", section: "NT", chapters: 24 },
+      { id: "joh", name: "John", section: "NT", chapters: 21 },
+      { id: "act", name: "Acts", section: "NT", chapters: 28 },
+      { id: "rom", name: "Romans", section: "NT", chapters: 16 },
+      { id: "1co", name: "1 Corinthians", section: "NT", chapters: 16 },
+      { id: "2co", name: "2 Corinthians", section: "NT", chapters: 13 },
+      { id: "gal", name: "Galatians", section: "NT", chapters: 6 },
+      { id: "eph", name: "Ephesians", section: "NT", chapters: 6 },
+      { id: "php", name: "Philippians", section: "NT", chapters: 4 },
+      { id: "col", name: "Colossians", section: "NT", chapters: 4 },
+      { id: "1th", name: "1 Thessalonians", section: "NT", chapters: 5 },
+      { id: "2th", name: "2 Thessalonians", section: "NT", chapters: 3 },
+      { id: "1ti", name: "1 Timothy", section: "NT", chapters: 6 },
+      { id: "2ti", name: "2 Timothy", section: "NT", chapters: 4 },
+      { id: "tit", name: "Titus", section: "NT", chapters: 3 },
+      { id: "phm", name: "Philemon", section: "NT", chapters: 1 },
+      { id: "heb", name: "Hebrews", section: "NT", chapters: 13 },
+      { id: "jas", name: "James", section: "NT", chapters: 5 },
+      { id: "1pe", name: "1 Peter", section: "NT", chapters: 5 },
+      { id: "2pe", name: "2 Peter", section: "NT", chapters: 3 },
+      { id: "1jo", name: "1 John", section: "NT", chapters: 5 },
+      { id: "2jo", name: "2 John", section: "NT", chapters: 1 },
+      { id: "3jo", name: "3 John", section: "NT", chapters: 1 },
+      { id: "jud", name: "Jude", section: "NT", chapters: 1 },
+      { id: "rev", name: "Revelation", section: "NT", chapters: 22 }
+    ];
+
+    // Sample Genesis 1 text for demonstration
+    const sampleGenesis1 = [
+      "In the beginning God created the heaven and the earth.",
+      "And the earth was without form, and void; and darkness was upon the face of the deep. And the Spirit of God moved upon the face of the waters.",
+      "And God said, Let there be light: and there was light.",
+      "And God saw the light, that it was good: and God divided the light from the darkness.",
+      "And God called the light Day, and the darkness he called Night. And the evening and the morning were the first day."
+    ];
+
+    let currentBook = kjvBooks[0];
+    let currentChapter = 1;
+
+    // Render Canon Sidebar Navigation
+    function renderNavigation() {
+      const otList = document.getElementById('ot-list');
+      const apocList = document.getElementById('apocrypha-list');
+      const ntList = document.getElementById('nt-list');
+
+      kjvBooks.forEach(book => {
+        const item = document.createElement('a');
+        item.href = '#';
+        item.className = 'list-group-item list-group-item-action';
+        item.dataset.id = book.id;
+        item.textContent = book.name;
+        
+        item.onclick = (e) => {
+          e.preventDefault();
+          selectBook(book);
+        };
+
+        if (book.section === 'OT') otList.appendChild(item);
+        else if (book.section === 'Apocrypha') apocList.appendChild(item);
+        else if (book.section === 'NT') ntList.appendChild(item);
+      });
+    }
+
+    // Select Book and Update UI
+    function selectBook(book, chapter = 1) {
+      currentBook = book;
+      currentChapter = chapter;
+
+      // Update active sidebar link
+      document.querySelectorAll('.sidebar-nav .list-group-item').forEach(el => {
+        el.classList.toggle('active', el.dataset.id === book.id);
+      });
+
+      // Update Title & Badge
+      document.getElementById('currentBookTitle').textContent = book.name;
+      const sectionName = book.section === 'OT' ? 'Old Testament' : (book.section === 'NT' ? 'New Testament' : 'Apocrypha');
+      document.getElementById('currentSectionBadge').textContent = sectionName;
+
+      // Populate Chapter Dropdown
+      const select = document.getElementById('chapterSelect');
+      select.innerHTML = '';
+      for (let c = 1; c <= book.chapters; c++) {
+        const opt = document.createElement('option');
+        opt.value = c;
+        opt.textContent = c;
+        if (c === chapter) opt.selected = true;
+        select.appendChild(opt);
+      }
+
+      renderChapterText();
+    }
+
+    // Render Scripture Text View
+    function renderChapterText() {
+      document.getElementById('chapterHeading').textContent = `Chapter ${currentChapter}`;
+      const container = document.getElementById('verseContent');
+      container.innerHTML = '';
+
+      if (currentBook.id === 'gen' && currentChapter === 1) {
+        sampleGenesis1.forEach((text, idx) => {
+          const p = document.createElement('p');
+          p.className = 'lh-lg fs-5';
+          p.innerHTML = `<span class="verse-num">${idx + 1}</span>${text}`;
+          container.appendChild(p);
+        });
+      } else {
+        // Placeholder view for other books/chapters
+        for (let i = 1; i <= 5; i++) {
+          const p = document.createElement('p');
+          p.className = 'lh-lg fs-5';
+          p.innerHTML = `<span class="verse-num">${i}</span>[Sample verse text for ${currentBook.name} Chapter ${currentChapter}, Verse ${i} in King James Version text format...]`;
+          container.appendChild(p);
+        }
+      }
+
+      // Update Next/Prev Buttons
+      document.getElementById('prevChapterBtn').classList.toggle('disabled', currentChapter <= 1);
+      document.getElementById('nextChapterBtn').classList.toggle('disabled', currentChapter >= currentBook.chapters);
+    }
+
+    // Initialize Event Listeners
+    document.addEventListener('DOMContentLoaded', () => {
+      renderNavigation();
+      selectBook(kjvBooks[0], 1);
+
+      document.getElementById('chapterSelect').addEventListener('change', (e) => {
+        currentChapter = parseInt(e.target.value, 10);
+        renderChapterText();
+      });
+
+      document.getElementById('prevChapterBtn').addEventListener('click', () => {
+        if (currentChapter > 1) {
+          currentChapter--;
+          document.getElementById('chapterSelect').value = currentChapter;
+          renderChapterText();
+        }
+      });
+
+      document.getElementById('nextChapterBtn').addEventListener('click', () => {
+        if (currentChapter < currentBook.chapters) {
+          currentChapter++;
+          document.getElementById('chapterSelect').value = currentChapter;
+          renderChapterText();
+        }
+      });
+    });
+  </script>
+</body>
+</html>
