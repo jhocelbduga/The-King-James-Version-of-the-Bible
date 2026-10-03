@@ -5667,11 +5667,21 @@
         .map(verse => verse.cloneNode(true));
       numbersHeading = verses.nextElementSibling;
     }
+    const deuteronomyChapters = {};
+    let deuteronomyHeading = numbersHeading;
+    for (let chapter = 1; chapter <= 34; chapter++) {
+      const verses = deuteronomyHeading.nextElementSibling;
+      deuteronomyChapters[chapter] = Array.from(verses.children)
+        .filter(verse => verse.tagName === 'P')
+        .map(verse => verse.cloneNode(true));
+      deuteronomyHeading = verses.nextElementSibling;
+    }
     const scriptureChapters = {
       gen: genesisChapters,
       exo: exodusChapters,
       lev: leviticusChapters,
-      num: numbersChapters
+      num: numbersChapters,
+      deu: deuteronomyChapters
     };
 
     function searchBible(query) {
@@ -5805,20 +5815,9 @@
       const container = document.getElementById('verseContent');
       container.innerHTML = '';
 
-      if (currentBook.id === 'gen' && genesisChapters[currentChapter]) {
-        genesisChapters[currentChapter].forEach(verse => {
-          container.appendChild(verse.cloneNode(true));
-        });
-      } else if (currentBook.id === 'exo' && exodusChapters[currentChapter]) {
-        exodusChapters[currentChapter].forEach(verse => {
-          container.appendChild(verse.cloneNode(true));
-        });
-      } else if (currentBook.id === 'lev' && leviticusChapters[currentChapter]) {
-        leviticusChapters[currentChapter].forEach(verse => {
-          container.appendChild(verse.cloneNode(true));
-        });
-      } else if (currentBook.id === 'num' && numbersChapters[currentChapter]) {
-        numbersChapters[currentChapter].forEach(verse => {
+      const chapterVerses = scriptureChapters[currentBook.id]?.[currentChapter];
+      if (chapterVerses) {
+        chapterVerses.forEach(verse => {
           container.appendChild(verse.cloneNode(true));
         });
       } else {
