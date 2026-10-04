@@ -13733,6 +13733,8 @@
             </div>					
   
 
+            
+
                 
                 
                 
@@ -13760,6 +13762,7 @@
   <!-- Bootstrap 5 JS Bundle -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="kjv-scripture.js"></script>
+  <script src="apocrypha-scripture.js"></script>
 
   <!-- Complete Application JavaScript Logic -->
   <script>
@@ -13815,7 +13818,7 @@
       { id: "wis", name: "Wisdom of Solomon", section: "Apocrypha", chapters: 19 },
       { id: "sir", name: "Ecclesiasticus (Sirach)", section: "Apocrypha", chapters: 51 },
       { id: "bar", name: "Baruch", section: "Apocrypha", chapters: 6 },
-      { id: "sth", name: "Song of Three Children", section: "Apocrypha", chapters: 1 },
+      { id: "sth", name: "Song of the Three Holy Children", section: "Apocrypha", chapters: 1 },
       { id: "sus", name: "Susanna", section: "Apocrypha", chapters: 1 },
       { id: "bel", name: "Bel and the Dragon", section: "Apocrypha", chapters: 1 },
       { id: "man", name: "Prayer of Manasses", section: "Apocrypha", chapters: 1 },
@@ -13892,6 +13895,20 @@
       throw new Error('The supplemental KJV scripture data could not be loaded.');
     }
 
+    function createVerseParagraphs(verses) {
+      return verses.map(([number, text]) => {
+        const paragraph = document.createElement('p');
+        paragraph.className = 'lh-lg fs-5';
+
+        const verseNumber = document.createElement('span');
+        verseNumber.className = 'verse-num';
+        verseNumber.textContent = number;
+        paragraph.append(verseNumber, ` ${text}`);
+
+        return paragraph;
+      });
+    }
+
     Object.entries(window.kjvSupplementalChapters).forEach(([bookId, chapters]) => {
       const book = kjvBooks.find(item => item.id === bookId);
       if (!book) {
@@ -13901,19 +13918,46 @@
       scriptureChapters[bookId] = Object.fromEntries(
         Object.entries(chapters).map(([chapterNumber, verses]) => [
           Number(chapterNumber),
-          verses.map(([number, text]) => {
-            const paragraph = document.createElement('p');
-            paragraph.className = 'lh-lg fs-5';
-
-            const verseNumber = document.createElement('span');
-            verseNumber.className = 'verse-num';
-            verseNumber.textContent = number;
-            paragraph.append(verseNumber, ` ${text}`);
-
-            return paragraph;
-          })
+          createVerseParagraphs(verses)
         ])
       );
+    });
+
+    if (!window.kjvApocryphaChapters) {
+      throw new Error('The Apocrypha scripture data could not be loaded.');
+    }
+
+    Object.entries(window.kjvApocryphaChapters).forEach(([bookId, chapters]) => {
+      const book = kjvBooks.find(item => item.id === bookId);
+      if (!book || (bookId !== 'est' && book.section !== 'Apocrypha')) {
+        throw new Error(`Unknown Apocrypha book in scripture data: ${bookId}.`);
+      }
+
+      const parsedChapters = Object.fromEntries(
+        Object.entries(chapters).map(([chapterNumber, verses]) => [
+          Number(chapterNumber),
+          createVerseParagraphs(verses)
+        ])
+      );
+
+      if (bookId === 'est') {
+        const estherChapter10 = scriptureChapters.est?.[10];
+        if (!estherChapter10 || !parsedChapters[10]) {
+          throw new Error('Esther chapter 10 or its Apocrypha additions are missing.');
+        }
+        estherChapter10.push(...parsedChapters[10]);
+        return;
+      }
+
+      scriptureChapters[bookId] = parsedChapters;
+    });
+
+    kjvBooks.filter(book => book.section === 'Apocrypha').forEach(book => {
+      for (let chapter = 1; chapter <= book.chapters; chapter++) {
+        if (!scriptureChapters[book.id]?.[chapter]?.length) {
+          throw new Error(`Apocrypha text is missing for ${book.name}, chapter ${chapter}.`);
+        }
+      }
     });
 
     function searchBible(query) {
@@ -14055,7 +14099,7 @@
       } else {
         const message = document.createElement('p');
         message.className = 'lh-lg fs-5 text-muted text-center';
-        message.textContent = `KJV text for ${currentBook.name} is not included in the supplied 66-book source.`;
+        message.textContent = `KJV text for ${currentBook.name} is not included in the supplied scripture data.`;
         container.appendChild(message);
       }
 
