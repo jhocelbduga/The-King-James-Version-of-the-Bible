@@ -68,6 +68,41 @@
       padding-left: 0.5rem;
     }
 
+    #searchForm {
+      position: relative;
+      z-index: 1021;
+    }
+
+    .search-suggestions {
+      position: absolute;
+      top: calc(100% + 0.25rem);
+      right: 0;
+      left: 0;
+      z-index: 1021;
+      max-height: 18rem;
+      overflow-y: auto;
+      border-radius: 0.375rem;
+      box-shadow: 0 0.5rem 1rem rgb(0 0 0 / 20%);
+    }
+
+    .search-suggestion {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      text-align: left;
+    }
+
+    .search-suggestion[aria-selected="true"],
+    .search-suggestion:hover {
+      color: #fff;
+      background-color: var(--primary-color);
+    }
+
+    .search-suggestion small {
+      flex: 0 0 auto;
+      opacity: 0.75;
+    }
+
     .nav-pills .nav-link.active {
       background-color: var(--primary-color);
     }
@@ -105,19 +140,26 @@
       </a>
 
       <div class="d-flex flex-column ms-auto ms-lg-3">
-        <button class="btn btn-outline-light text-nowrap" type="button" id="offlineDownloadButton">
-          <i class="bi bi-download me-1" aria-hidden="true"></i>
-          <span>Download for Offline</span>
-        </button>
-        <small id="offlineStatus" class="text-warning" style="max-width: 18rem;" role="status" aria-live="polite"></small>
+        <div class="d-flex gap-2">
+          <button class="btn btn-outline-light text-nowrap" type="button" id="appleInstallButton" aria-label="Install on Apple">
+            <i class="bi bi-apple me-1" aria-hidden="true"></i>
+            <span>Apple</span>
+          </button>
+          <button class="btn btn-outline-light text-nowrap" type="button" id="androidInstallButton" aria-label="Install on Android">
+            <i class="bi bi-android2 me-1" aria-hidden="true"></i>
+            <span>Android</span>
+          </button>
+        </div>
+        <small id="offlineStatus" class="text-warning" style="max-width: 20rem;" role="status" aria-live="polite"></small>
       </div>
       
       <!-- Quick Search Bar -->
-      <form class="d-flex flex-column ms-lg-3 my-2 my-lg-0 col-12 col-lg-4" id="searchForm">
+      <form class="d-flex flex-column ms-lg-3 my-2 my-lg-0 col-12 col-lg-5" id="searchForm">
         <div class="input-group">
-          <input class="form-control" type="search" id="searchInput" placeholder="Search book, chapter, or verse..." aria-label="Search">
+          <input class="form-control" type="search" id="searchInput" placeholder="Search book, chapter, or verse..." aria-label="Search" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="searchSuggestions" aria-haspopup="listbox" autocomplete="off">
           <button class="btn btn-outline-light" type="submit"><i class="bi bi-search"></i></button>
         </div>
+        <div class="list-group search-suggestions d-none" id="searchSuggestions" role="listbox" aria-label="Search suggestions"></div>
         <small id="searchFeedback" class="text-warning" role="status" aria-live="polite"></small>
       </form>
     </div>
@@ -13772,8 +13814,7 @@
   <!-- Footer -->
   <footer class="bg-dark text-light text-center py-4 mt-5 border-top border-secondary">
     <div class="container">
-      <p class="small mb-1">King James Version (1611) — Public Domain Source hosted on Project Gutenberg. Book design by Jhocel Duga</p>
-      <p class="text-muted small mb-0">Designed with Bootstrap 5 Framework.</p>
+      <p class="small mb-0">King James Version (1611). Book designed by Jhocel Duga:</p>
     </div>
   </footer>
 
@@ -14047,6 +14088,131 @@
       }
     }
 
+    function getSearchSuggestions(query) {
+      const normalizedQuery = query.trim().toLowerCase();
+      if (!normalizedQuery) return [];
+
+      function getReferenceSuggestions(book, reference) {
+        const parts = reference.match(/^(\d+)(?::(\d*))?$/);
+        if (!parts) return [];
+
+        const chapter = Number(parts[1]);
+        if (chapter < 1 || chapter > book.chapters) return [];
+
+        if (parts[2] === undefined) {
+          return [{ value: `${book.name} ${chapter}`, detail: `Chapter ${chapter}` }];
+        }
+
+        const versePrefix = parts[2];
+        const verses = scriptureChapters[book.id]?.[chapter] || [];
+        return verses
+          .map(verse => Number(verse.querySelector('.verse-num')?.textContent))
+          .filter(number => Number.isInteger(number) && String(number).startsWith(versePrefix))
+          .slice(0, 6)
+          .map(number => ({
+            value: `${book.name} ${chapter}:${number}`,
+            detail: `Verse ${number}`
+          }));
+      }
+
+      const bookMatch = kjvBooks
+        .flatMap(book => [
+          { book, label: book.name.toLowerCase() },
+          { book, label: book.id.toLowerCase() }
+        ])
+        .sort((a, b) => b.label.length - a.label.length)
+        .find(({ label }) =>
+          normalizedQuery === label || normalizedQuery.startsWith(`${label} `)
+        );
+
+      if (bookMatch) {
+        const { book, label } = bookMatch;
+        const reference = normalizedQuery.slice(label.length).trim();
+        if (!reference) {
+          return [
+            { value: book.name, detail: `${book.section} · book` },
+            { value: `${book.name} 1`, detail: 'Chapter 1' },
+            { value: `${book.name} 1:1`, detail: 'Verse 1' }
+          ];
+        }
+
+        return getReferenceSuggestions(book, reference);
+      }
+
+      if (/^\d+(?::\d*)?$/.test(normalizedQuery)) {
+        return getReferenceSuggestions(currentBook, normalizedQuery);
+      }
+
+      return kjvBooks
+        .filter(book =>
+          book.name.toLowerCase().startsWith(normalizedQuery) ||
+          book.id.toLowerCase().startsWith(normalizedQuery)
+        )
+        .slice(0, 6)
+        .map(book => ({ value: book.name, detail: `${book.section} · book` }));
+    }
+
+    function renderSearchSuggestions(query) {
+      const input = document.getElementById('searchInput');
+      const list = document.getElementById('searchSuggestions');
+      const suggestions = getSearchSuggestions(query);
+      list.replaceChildren();
+
+      suggestions.forEach(({ value, detail }, index) => {
+        const option = document.createElement('button');
+        option.type = 'button';
+        option.id = `search-suggestion-${index}`;
+        option.className = 'list-group-item list-group-item-action search-suggestion';
+        option.setAttribute('role', 'option');
+        option.setAttribute('aria-selected', 'false');
+
+        const label = document.createElement('span');
+        label.textContent = value;
+        const hint = document.createElement('small');
+        hint.textContent = detail;
+        option.append(label, hint);
+        option.addEventListener('click', () => {
+          input.value = value;
+          hideSearchSuggestions();
+          searchBible(value);
+          input.focus();
+        });
+        list.appendChild(option);
+      });
+
+      list.classList.toggle('d-none', suggestions.length === 0);
+      input.setAttribute('aria-expanded', String(suggestions.length > 0));
+      input.removeAttribute('aria-activedescendant');
+    }
+
+    function hideSearchSuggestions() {
+      const input = document.getElementById('searchInput');
+      document.getElementById('searchSuggestions').classList.add('d-none');
+      input.setAttribute('aria-expanded', 'false');
+      input.removeAttribute('aria-activedescendant');
+    }
+
+    function moveSearchSuggestion(direction) {
+      const input = document.getElementById('searchInput');
+      const list = document.getElementById('searchSuggestions');
+      const options = Array.from(list.querySelectorAll('[role="option"]'));
+      if (list.classList.contains('d-none') || options.length === 0) return false;
+
+      const selectedIndex = options.findIndex(option =>
+        option.getAttribute('aria-selected') === 'true'
+      );
+      const nextIndex = selectedIndex === -1
+        ? (direction > 0 ? 0 : options.length - 1)
+        : (selectedIndex + direction + options.length) % options.length;
+
+      options.forEach((option, index) => {
+        option.setAttribute('aria-selected', String(index === nextIndex));
+      });
+      input.setAttribute('aria-activedescendant', options[nextIndex].id);
+      options[nextIndex].scrollIntoView({ block: 'nearest' });
+      return true;
+    }
+
     let currentBook = kjvBooks[0];
     let currentChapter = 1;
 
@@ -14141,8 +14307,9 @@
       const heading = document.getElementById('chapterHeading');
       const verseContainer = document.getElementById('verseContent');
       const chapterNavigation = article.querySelector('.d-flex.justify-content-between');
-      const offlineButton = document.getElementById('offlineDownloadButton');
-      const offlineButtonLabel = offlineButton.querySelector('span');
+      const appleInstallButton = document.getElementById('appleInstallButton');
+      const androidInstallButton = document.getElementById('androidInstallButton');
+      const installButtons = [appleInstallButton, androidInstallButton];
       const offlineStatus = document.getElementById('offlineStatus');
       let offlineReady = false;
 
@@ -14151,10 +14318,103 @@
         deferredInstallPrompt = null;
         await installPrompt.prompt();
         const { outcome } = await installPrompt.userChoice;
-        offlineButtonLabel.textContent = 'Offline Ready';
-        offlineStatus.textContent = outcome === 'accepted'
-          ? 'Installed. The app icon was added to your device.'
-          : 'Ready offline. Install was cancelled; use your browser menu to install later.';
+        return outcome;
+      }
+
+      async function prepareOffline() {
+        await navigator.serviceWorker.register('./service-worker.js');
+        const registration = await navigator.serviceWorker.ready;
+        if (!registration.active) {
+          throw new Error('The offline service worker did not become active.');
+        }
+
+        const channel = new MessageChannel();
+        return new Promise((resolve, reject) => {
+          const timeout = window.setTimeout(() => {
+            channel.port1.close();
+            reject(new Error('The offline download timed out. Please try again.'));
+          }, 60000);
+
+          channel.port1.onmessage = ({ data }) => {
+            window.clearTimeout(timeout);
+            channel.port1.close();
+            if (data?.success) {
+              resolve(data);
+            } else {
+              reject(new Error(data?.error || 'The offline download failed.'));
+            }
+          };
+
+          registration.active.postMessage({
+            type: 'PREPARE_OFFLINE',
+            urls: performance.getEntriesByType('resource').map(entry => entry.name)
+          }, [channel.port2]);
+        });
+      }
+
+      async function installForPlatform(platform) {
+        let installOutcome = null;
+        let downloadWarnings = false;
+
+        try {
+          if (platform === 'android' && deferredInstallPrompt) {
+            installOutcome = await promptInstall();
+          }
+
+          if (!offlineReady) {
+            if (!('serviceWorker' in navigator) || !window.isSecureContext) {
+              throw new Error('Installation and offline access require a secure HTTPS connection.');
+            }
+
+            installButtons.forEach(button => { button.disabled = true; });
+            offlineStatus.textContent = 'Downloading the reader and scripture for offline use.';
+            try {
+              const result = await prepareOffline();
+              offlineReady = true;
+              downloadWarnings = Boolean(result.warnings?.length);
+            } finally {
+              installButtons.forEach(button => { button.disabled = false; });
+            }
+          }
+
+          const readyMessage = downloadWarnings
+            ? 'Ready offline, but some optional fonts or styles could not be downloaded.'
+            : 'Ready to use offline.';
+          const isInstalled = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+
+          if (isInstalled) {
+            offlineStatus.textContent = `${readyMessage} App already installed.`;
+          } else if (platform === 'apple') {
+            offlineStatus.textContent = `${readyMessage} On your Apple device, open this page in Safari, tap Share, then Add to Home Screen.`;
+          } else if (installOutcome === 'accepted') {
+            offlineStatus.textContent = `${readyMessage} The app was installed.`;
+          } else if (installOutcome === 'dismissed') {
+            offlineStatus.textContent = `${readyMessage} To install later, use your browser menu and choose Install app or Add to Home screen.`;
+          } else if (deferredInstallPrompt && navigator.userActivation?.isActive) {
+            installOutcome = await promptInstall();
+            offlineStatus.textContent = installOutcome === 'accepted'
+              ? `${readyMessage} The app was installed.`
+              : `${readyMessage} To install later, use your browser menu and choose Install app or Add to Home screen.`;
+          } else {
+            offlineStatus.textContent = `${readyMessage} Use your browser menu and choose Install app or Add to Home screen.`;
+          }
+        } catch (error) {
+          offlineStatus.textContent = error instanceof Error
+            ? error.message
+            : 'The offline download failed. Please try again.';
+        }
+      }
+
+      // Restore the "ready" state after a reload when the offline copy was already downloaded.
+      if (window.isSecureContext && 'caches' in window) {
+        caches.open('kjv-reader-offline-v3')
+          .then(cache => cache.match('./kjv-scripture.js'))
+          .then(saved => {
+            if (saved && navigator.serviceWorker?.controller) {
+              offlineReady = true;
+            }
+          })
+          .catch(() => {});
       }
 
       article.replaceChildren(heading, verseContainer, chapterNavigation);
@@ -14162,84 +14422,37 @@
       renderNavigation();
       selectBook(kjvBooks[0], 1);
 
-      offlineButton.addEventListener('click', async () => {
-        if (offlineReady && deferredInstallPrompt) {
-          await promptInstall();
-          return;
-        }
+      appleInstallButton.addEventListener('click', () => installForPlatform('apple'));
+      androidInstallButton.addEventListener('click', () => installForPlatform('android'));
 
-        if (!('serviceWorker' in navigator) || !window.isSecureContext) {
-          offlineStatus.textContent = 'Offline download requires a secure HTTPS connection.';
-          return;
-        }
-
-        offlineButton.disabled = true;
-        offlineButtonLabel.textContent = 'Preparing...';
-        offlineStatus.textContent = 'Downloading the reader and scripture for offline use.';
-
-        try {
-          await navigator.serviceWorker.register('./service-worker.js');
-          const registration = await navigator.serviceWorker.ready;
-          if (!registration.active) {
-            throw new Error('The offline service worker did not become active.');
+      const searchInput = document.getElementById('searchInput');
+      const searchForm = document.getElementById('searchForm');
+      searchInput.addEventListener('input', () => {
+        document.getElementById('searchFeedback').textContent = '';
+        renderSearchSuggestions(searchInput.value);
+      });
+      searchInput.addEventListener('keydown', event => {
+        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+          if (moveSearchSuggestion(event.key === 'ArrowDown' ? 1 : -1)) {
+            event.preventDefault();
           }
-
-          const channel = new MessageChannel();
-          const result = await new Promise((resolve, reject) => {
-            const timeout = window.setTimeout(() => {
-              channel.port1.close();
-              reject(new Error('The offline download timed out. Please try again.'));
-            }, 60000);
-
-            channel.port1.onmessage = ({ data }) => {
-              window.clearTimeout(timeout);
-              channel.port1.close();
-              if (data?.success) {
-                resolve(data);
-              } else {
-                reject(new Error(data?.error || 'The offline download failed.'));
-              }
-            };
-
-            registration.active.postMessage({
-              type: 'PREPARE_OFFLINE',
-              urls: performance.getEntriesByType('resource').map(entry => entry.name)
-            }, [channel.port2]);
-          });
-
-          offlineReady = true;
-          offlineButtonLabel.textContent = 'Offline Ready';
-          offlineStatus.textContent = result.warnings?.length
-            ? 'Ready offline, but some optional fonts or styles could not be downloaded.'
-            : 'Ready to use offline.';
-
-          if (window.matchMedia('(display-mode: standalone)').matches || navigator.standalone) {
-            offlineStatus.textContent += ' App already installed.';
-          } else if (deferredInstallPrompt) {
-            if (navigator.userActivation?.isActive) {
-              await promptInstall();
-            } else {
-              offlineButtonLabel.textContent = 'Install App';
-              offlineStatus.textContent += ' Click Install App to add the icon.';
-            }
-          } else if (/iphone|ipad|ipod/i.test(navigator.userAgent)) {
-            offlineStatus.textContent += ' To add the icon: tap Share, then Add to Home Screen.';
-          } else {
-            offlineStatus.textContent += ' To add the icon: open your browser menu and choose Install app.';
+        } else if (event.key === 'Escape') {
+          hideSearchSuggestions();
+        } else if (event.key === 'Enter') {
+          const selected = document.querySelector('#searchSuggestions [aria-selected="true"]');
+          if (selected) {
+            event.preventDefault();
+            selected.click();
           }
-        } catch (error) {
-          offlineButtonLabel.textContent = 'Download for Offline';
-          offlineStatus.textContent = error instanceof Error
-            ? error.message
-            : 'The offline download failed. Please try again.';
-        } finally {
-          offlineButton.disabled = false;
         }
       });
-
-      document.getElementById('searchForm').addEventListener('submit', (e) => {
+      searchForm.addEventListener('submit', (e) => {
         e.preventDefault();
-        searchBible(document.getElementById('searchInput').value);
+        hideSearchSuggestions();
+        searchBible(searchInput.value);
+      });
+      document.addEventListener('click', event => {
+        if (!searchForm.contains(event.target)) hideSearchSuggestions();
       });
 
       document.getElementById('chapterSelect').addEventListener('change', (e) => {
