@@ -167,6 +167,7 @@
             <span>Android</span>
           </button>
         </div>
+        <button class="btn btn-outline-light text-nowrap" type="button" id="downloadOfflineButton">Download for offline</button>
         <small id="offlineStatus" class="text-warning" style="max-width: 20rem;" role="status" aria-live="polite"></small>
       </div>
       
@@ -13836,6 +13837,25 @@
   </footer>
 
   <!-- Bootstrap 5 JS Bundle -->
+  <div class="modal fade" id="offlineDownloadModal" tabindex="-1" aria-labelledby="offlineDownloadTitle" aria-describedby="offlineDownloadDescription" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 class="modal-title h5" id="offlineDownloadTitle">Download the KJV Bible for offline reading</h2>
+          <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Not now"></button>
+        </div>
+        <div class="modal-body">
+          <p id="offlineDownloadDescription">Download the Bible reader and Scripture files to enable offline mode on this device. Once saved, you can read Scripture, search, and mark verses as read without an internet connection.</p>
+          <p class="small text-muted">An internet connection and browser storage are required for the download. Online reading remains available without downloading. Clearing browser storage may remove the offline copy. External links and account services still need internet access.</p>
+          <p id="offlineDownloadFeedback" role="status" aria-live="polite"></p>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Not now</button>
+          <button class="btn btn-success" type="button" id="confirmOfflineDownload">Download and enable offline mode</button>
+        </div>
+      </div>
+    </div>
+  </div>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="kjv-scripture.js"></script>
   <script src="apocrypha-scripture.js"></script>
@@ -14328,9 +14348,14 @@
       const chapterNavigation = article.querySelector('.d-flex.justify-content-between');
       const appleInstallButton = document.getElementById('appleInstallButton');
       const androidInstallButton = document.getElementById('androidInstallButton');
-      const installButtons = [appleInstallButton, androidInstallButton];
+      const downloadButton = document.getElementById('downloadOfflineButton');
+      const confirmDownload = document.getElementById('confirmOfflineDownload');
+      const installButtons = [appleInstallButton, androidInstallButton, downloadButton, confirmDownload];
       const offlineStatus = document.getElementById('offlineStatus');
+      const downloadFeedback = document.getElementById('offlineDownloadFeedback');
+      const downloadModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('offlineDownloadModal'));
       let offlineReady = false;
+      let downloading = false;
 
       async function promptInstall() {
         const installPrompt = deferredInstallPrompt;
@@ -14372,6 +14397,8 @@
       }
 
       async function installForPlatform(platform) {
+        if (downloading) return;
+        downloading = true;
         let installOutcome = null;
         let downloadWarnings = false;
 
@@ -14387,6 +14414,7 @@
 
             installButtons.forEach(button => { button.disabled = true; });
             offlineStatus.textContent = 'Downloading the reader and scripture for offline use.';
+            downloadFeedback.textContent = offlineStatus.textContent;
             try {
               const result = await prepareOffline();
               offlineReady = true;
@@ -14399,6 +14427,13 @@
           const readyMessage = downloadWarnings
             ? 'Ready offline, but some optional fonts or styles could not be downloaded.'
             : 'Ready to use offline.';
+          downloadFeedback.textContent = `${readyMessage} Offline reading is enabled on this device.`;
+          if (platform === 'offline') {
+            offlineStatus.textContent = downloadFeedback.textContent;
+            downloadButton.textContent = 'Offline download ready';
+            downloadModal.hide();
+            return;
+          }
           const isInstalled = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
 
           if (isInstalled) {
@@ -14421,20 +14456,46 @@
           offlineStatus.textContent = error instanceof Error
             ? error.message
             : 'The offline download failed. Please try again.';
+          downloadFeedback.textContent = offlineStatus.textContent;
+          console.error('Unable to prepare offline reading:', error);
+        } finally {
+          downloading = false;
         }
       }
 
-      // Restore the "ready" state after a reload when the offline copy was already downloaded.
-      if (window.isSecureContext && 'caches' in window) {
-        caches.open('kjv-reader-offline-v3')
-          .then(cache => cache.match('./kjv-scripture.js'))
-          .then(saved => {
-            if (saved && navigator.serviceWorker?.controller) {
-              offlineReady = true;
+      async function promptOfflineDownload() {
+        try {
+          if (window.isSecureContext && 'caches' in window) {
+            const names = await caches.keys();
+            if (names.includes('kjv-reader-offline-v6')) {
+              const cache = await caches.open('kjv-reader-offline-v6');
+              const required = ['./index.html', './kjv-scripture.js', './apocrypha-scripture.js', './reading-progress.js'];
+              offlineReady = (await Promise.all(required.map(url => cache.match(url)))).every(Boolean);
             }
-          })
-          .catch(() => {});
+          }
+          if (offlineReady) {
+            offlineStatus.textContent = 'Offline reading is enabled on this device.';
+            downloadButton.textContent = 'Offline download ready';
+          } else if (localStorage.getItem('kjv-offline-prompt-seen') !== '1') {
+            downloadModal.show();
+          }
+        } catch (error) {
+          offlineStatus.textContent = 'Could not check the saved offline copy. Use Download for offline to try again.';
+          console.error('Unable to check offline download status:', error);
+          downloadModal.show();
+        }
       }
+      document.getElementById('offlineDownloadModal').addEventListener('hidden.bs.modal', () => {
+        try {
+          localStorage.setItem('kjv-offline-prompt-seen', '1');
+        } catch (error) {
+          offlineStatus.textContent += ' Your prompt preference could not be saved.';
+          console.error('Unable to save offline prompt preference:', error);
+        }
+      });
+      downloadButton.addEventListener('click', () => downloadModal.show());
+      confirmDownload.addEventListener('click', () => installForPlatform('offline'));
+      promptOfflineDownload();
 
       const progress = document.createElement('div');
       progress.className = 'small mb-3';

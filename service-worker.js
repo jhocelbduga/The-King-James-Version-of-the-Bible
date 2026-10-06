@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kjv-reader-offline-v5';
+const CACHE_NAME = 'kjv-reader-offline-v6';
 const ALLOWED_RESOURCE_ORIGINS = new Set([
   self.location.origin,
   'https://cdn.jsdelivr.net',
@@ -47,6 +47,7 @@ self.addEventListener('message', event => {
   const replyPort = event.ports[0];
   event.waitUntil((async () => {
     const cache = await caches.open(CACHE_NAME);
+    await cache.addAll(shellUrls);
     const warnings = [];
     const resourceUrls = [...new Set(event.data.urls || [])];
 
