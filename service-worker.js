@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kjv-reader-offline-v2';
+const CACHE_NAME = 'kjv-reader-offline-v5';
 const ALLOWED_RESOURCE_ORIGINS = new Set([
   self.location.origin,
   'https://cdn.jsdelivr.net',
@@ -11,6 +11,7 @@ const shellUrls = [
   new URL('./index.html', self.registration.scope).href,
   new URL('./kjv-scripture.js', self.registration.scope).href,
   new URL('./apocrypha-scripture.js', self.registration.scope).href,
+  new URL('./reading-progress.js', self.registration.scope).href,
   new URL('./manifest.webmanifest', self.registration.scope).href,
   new URL('./icons/icon-192.png', self.registration.scope).href,
   new URL('./icons/icon-512.png', self.registration.scope).href,
@@ -76,6 +77,33 @@ self.addEventListener('message', event => {
       } catch (error) {
         console.warn('Could not cache an optional offline resource:', url.href, error);
         warnings.push(`An optional resource could not be downloaded (${url.hostname}).`);
+      }
+    }
+
+    // Stylesheets reference font files that the page only requests lazily, so cache them explicitly.
+    for (const request of await cache.keys()) {
+      const cssUrl = new URL(request.url);
+      if (!ALLOWED_RESOURCE_ORIGINS.has(cssUrl.origin) || cssUrl.origin === self.location.origin) continue;
+
+      const cachedCss = await cache.match(request);
+      if (!cachedCss || cachedCss.type === 'opaque' || !(cachedCss.headers.get('content-type') || '').includes('text/css')) continue;
+
+      const css = await cachedCss.clone().text();
+      const fontUrls = new Set(
+        [...css.matchAll(/url\(\s*['"]?([^'")]+)['"]?\s*\)/g)]
+          .map(match => new URL(match[1], cssUrl).href)
+          .filter(href => /\.(woff2?|ttf|otf)(\?|$)/i.test(href) && ALLOWED_RESOURCE_ORIGINS.has(new URL(href).origin))
+      );
+
+      for (const fontUrl of fontUrls) {
+        if (await cache.match(fontUrl)) continue;
+        try {
+          const response = await fetch(fontUrl, { mode: 'cors', credentials: 'omit' });
+          if (response.ok) await cache.put(fontUrl, response);
+        } catch (error) {
+          console.warn('Could not cache a font file:', fontUrl, error);
+          warnings.push(`A font file could not be downloaded (${new URL(fontUrl).hostname}).`);
+        }
       }
     }
 

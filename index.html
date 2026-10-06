@@ -68,6 +68,20 @@
       padding-left: 0.5rem;
     }
 
+    .verse-is-read {
+      background: #e7f3e9;
+      border-left: 3px solid #287544;
+      padding-left: 0.75rem;
+    }
+
+    .verse-read-toggle {
+      display: block;
+      margin-top: 0.5rem;
+      margin-bottom: 1rem;
+      font-family: system-ui, sans-serif;
+      min-height: 44px;
+    }
+
     #searchForm {
       position: relative;
       z-index: 1021;
@@ -13825,6 +13839,7 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="kjv-scripture.js"></script>
   <script src="apocrypha-scripture.js"></script>
+  <script src="reading-progress.js"></script>
 
   <!-- Complete Application JavaScript Logic -->
   <script>
@@ -14291,6 +14306,7 @@
       }
 
       // Update Next/Prev Buttons
+      window.KJVReadingProgress.decorate(container, currentBook, currentChapter);
       document.getElementById('prevChapterBtn').classList.toggle('disabled', currentChapter <= 1);
       document.getElementById('nextChapterBtn').classList.toggle('disabled', currentChapter >= currentBook.chapters);
     }
@@ -14420,7 +14436,24 @@
           .catch(() => {});
       }
 
-      article.replaceChildren(heading, verseContainer, chapterNavigation);
+      const progress = document.createElement('div');
+      progress.className = 'small mb-3';
+      const summary = document.createElement('p');
+      summary.id = 'chapterReadSummary';
+      summary.setAttribute('role', 'status');
+      const note = document.createElement('p');
+      note.textContent = 'Use Mark as read beneath each verse. Select Read - undo to mark it unread. Reading marks are saved only in this browser, not synchronized with your account or reading plans.';
+      const feedback = document.createElement('p');
+      feedback.id = 'readingProgressFeedback';
+      feedback.setAttribute('role', 'status');
+      feedback.setAttribute('aria-live', 'polite');
+      progress.append(summary, note, feedback);
+      const milestones = document.createElement('section');
+      milestones.className = 'border rounded p-3 mb-3';
+      milestones.setAttribute('aria-label', 'Verse reading milestones');
+      milestones.innerHTML = '<h3 class="h5">Verse reading milestones</h3><p id="verseMilestoneTotal"></p><p id="verseMilestoneNext"></p><p id="verseAchievementFeedback" role="status" aria-live="polite"></p><details><summary id="verseAchievementCount">Achievement notifications</summary><ul id="verseAchievementList"></ul><button id="markVerseAchievementsRead" type="button" class="btn btn-sm btn-outline-success">Mark notifications as read</button></details><p class="small mt-2 mb-0">Milestones: 1, 10, 50, 100, 500 and 1,000 verses. Earned achievements remain after undoing progress. Saved on this device; notifications are in-app only.</p>';
+      progress.appendChild(milestones);
+      article.replaceChildren(heading, progress, verseContainer, chapterNavigation);
 
       renderNavigation();
       selectBook(kjvBooks[0], 1);
